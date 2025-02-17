@@ -8,6 +8,19 @@ pub struct Config {
     pub smtp: SmtpConfiguration,
     pub email: EmailConfiguration,
     pub diary: DiaryConfiguration,
+    pub notify: NotifyConfiguration,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotifyConfiguration {
+    pub enable_wechatwork_bot: bool,
+    pub wechatworkbot: WechatWorkBotConfiguration,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WechatWorkBotConfiguration {
+    pub url: String,
+    pub key: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,5 +64,10 @@ impl Config {
     pub fn get_diary_config(config_file_path: Option<&str>) -> Result<DiaryConfiguration> {
         let config = Config::get_config(config_file_path)?;
         Ok(config.diary)
+    }
+
+    pub fn get_notify_config(config_file_path: Option<&str>) -> Result<NotifyConfiguration> {
+        let config = Config::get_config(config_file_path)?;
+        Ok(config.notify)
     }
 }

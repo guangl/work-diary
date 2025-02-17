@@ -1,7 +1,7 @@
 use anyhow::Result;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 
-use crate::utils::config::Config;
+use crate::utils::config::{Config, WechatWorkBotConfiguration};
 
 #[derive(Debug, Default)]
 pub struct ExMail {
@@ -58,16 +58,46 @@ impl ExMail {
 
         let credentials = Credentials::new(send_email.to_string(), password.to_string());
 
-        let mailer = SmtpTransport::relay(&smtp_server)?
+        let mailer = SmtpTransport::relay(smtp_server)?
             .port(smtp_port)
             .credentials(credentials)
             .build();
 
+        let notify_config = Config::get_notify_config(None)?;
         match mailer.send(&email) {
-            Ok(_) => println!("Email sent successfully!"),
-            Err(e) => eprintln!("Could not send email: {:?}", e),
+            Ok(_) => {
+                if notify_config.enable_wechatwork_bot {
+                    post_to_wechatwork_bot(notify_config.wechatworkbot, "【guangluo】工作日志邮件发送成功!").await?;
+                }
+
+                println!("Email sent successfully!");
+            },
+            Err(e) => {
+                if notify_config.enable_wechatwork_bot {
+                    post_to_wechatwork_bot(notify_config.wechatworkbot, "【guangluo】工作日志邮件发送失败!").await?;
+                }
+                eprintln!("Could not send email: {:?}", e)
+            },
         }
 
         Ok(())
     }
+}
+
+async fn post_to_wechatwork_bot(wechatworkbot_config: WechatWorkBotConfiguration, message: &str) -> Result<bool> {
+    let url = format!("{}?key={}", wechatworkbot_config.url, wechatworkbot_config.key);
+
+    let client = reqwest::Client::new();
+    let res = client.post(&url).json(&serde_json::json!({
+        "msgtype": "text",
+        "text": {
+            "content": message
+        }
+    })).send().await?;
+    if res.status() != 200 {
+        eprintln!("Failed to post to WechatWork Bot: {:?}", res.text().await?);
+        return Ok(false);
+    }
+
+    Ok(true)
 }
