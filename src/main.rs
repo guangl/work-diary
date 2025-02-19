@@ -3,9 +3,10 @@ use chrono::Local;
 use work_diary::exmail::ExMail;
 use work_diary::utils::config::Config;
 use work_diary::utils::file::get_file_content;
+use work_diary::utils::smb::get_samba_file_content;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let mut config_file_path: Option<&str> = None;
 
@@ -14,6 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let diary_config = Config::get_diary_config(config_file_path)?;
+    let features_config = Config::get_features_config(config_file_path)?;
     let today = Local::now().format("%Y-%m-%d");
     let subject = format!("{} 工作日志", today);
     let filepath = format!(
@@ -21,10 +23,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         diary_config.filepath, today, diary_config.suffix
     );
 
-    let file_content = get_file_content(&filepath)?;
+    let file_content = if features_config.enable_samba {
+        get_samba_file_content(&filepath)?
+    } else {
+        get_file_content(&filepath)?
+    };
 
     let exmail = ExMail::new();
     exmail.send_email(&subject, &file_content).await?;
+
+    // println!("{}", file_content);
 
     Ok(())
 }

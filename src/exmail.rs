@@ -30,11 +30,7 @@ impl ExMail {
         }
     }
 
-    pub async fn send_email(
-        &self,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_email(&self, subject: &str, body: &str) -> Result<()> {
         let receiver_emails = self.receiver_email.split(',').map(|item| item.trim());
         let cc_emails = self.cc_email.split(',').map(|item| item.trim());
         let send_email = &self.send_email;
@@ -63,37 +59,64 @@ impl ExMail {
             .credentials(credentials)
             .build();
 
-        let notify_config = Config::get_notify_config(None)?;
+        let features_config = Config::get_features_config(None)?;
         match mailer.send(&email) {
             Ok(_) => {
-                if notify_config.enable_wechatwork_bot {
-                    post_to_wechatwork_bot(notify_config.wechatworkbot, "【guangluo】工作日志邮件发送成功!").await?;
+                if features_config.enable_notify {
+                    let notify_config = Config::get_notify_config(None)?;
+
+                    if notify_config.enable_wechatwork_bot {
+                        post_to_wechatwork_bot(
+                            notify_config.wechatworkbot,
+                            "【guangluo】工作日志邮件发送成功!",
+                        )
+                        .await?;
+                    }
                 }
 
                 println!("Email sent successfully!");
-            },
+            }
             Err(e) => {
-                if notify_config.enable_wechatwork_bot {
-                    post_to_wechatwork_bot(notify_config.wechatworkbot, "【guangluo】工作日志邮件发送失败!").await?;
+                if features_config.enable_notify {
+                    let notify_config = Config::get_notify_config(None)?;
+                    
+                    if notify_config.enable_wechatwork_bot {
+                        post_to_wechatwork_bot(
+                            notify_config.wechatworkbot,
+                            "【guangluo】工作日志邮件发送失败!",
+                        )
+                        .await?;
+                    }
                 }
+
                 eprintln!("Could not send email: {:?}", e)
-            },
+            }
         }
 
         Ok(())
     }
 }
 
-async fn post_to_wechatwork_bot(wechatworkbot_config: WechatWorkBotConfiguration, message: &str) -> Result<bool> {
-    let url = format!("{}?key={}", wechatworkbot_config.url, wechatworkbot_config.key);
+async fn post_to_wechatwork_bot(
+    wechatworkbot_config: WechatWorkBotConfiguration,
+    message: &str,
+) -> Result<bool> {
+    let url = format!(
+        "{}?key={}",
+        wechatworkbot_config.url, wechatworkbot_config.key
+    );
 
     let client = reqwest::Client::new();
-    let res = client.post(&url).json(&serde_json::json!({
-        "msgtype": "text",
-        "text": {
-            "content": message
-        }
-    })).send().await?;
+    let res = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "msgtype": "text",
+            "text": {
+                "content": message
+            }
+        }))
+        .send()
+        .await?;
     if res.status() != 200 {
         eprintln!("Failed to post to WechatWork Bot: {:?}", res.text().await?);
         return Ok(false);
