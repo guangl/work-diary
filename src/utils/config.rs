@@ -22,7 +22,7 @@ pub struct SambaConfiguration {
 
 #[derive(Debug, Deserialize)]
 pub struct NotifyConfiguration {
-    pub enable_wechatwork_bot: bool,
+    pub enable_wechatworkbot: bool,
     pub wechatworkbot: WechatWorkBotConfiguration,
 }
 

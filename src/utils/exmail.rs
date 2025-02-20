@@ -1,5 +1,6 @@
 use anyhow::Result;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
+use tracing::{error, info};
 
 use crate::utils::config::{
     get, EmailConfiguration, FeaturesConfiguration, NotifyConfiguration, SmtpConfiguration,
@@ -68,8 +69,8 @@ impl ExMail {
                 if features_config.enable_notify {
                     let notify_config = get::<NotifyConfiguration>("features.notify");
 
-                    if notify_config.enable_wechatwork_bot {
-                        post_to_wechatwork_bot(
+                    if notify_config.enable_wechatworkbot {
+                        post_to_wechatworkbot(
                             notify_config.wechatworkbot,
                             "【guangluo】工作日志邮件发送成功!",
                         )
@@ -77,14 +78,14 @@ impl ExMail {
                     }
                 }
 
-                println!("Email sent successfully!");
+                info!("Email sent successfully!");
             }
             Err(e) => {
                 if features_config.enable_notify {
                     let notify_config = get::<NotifyConfiguration>("features.notify");
 
-                    if notify_config.enable_wechatwork_bot {
-                        post_to_wechatwork_bot(
+                    if notify_config.enable_wechatworkbot {
+                        post_to_wechatworkbot(
                             notify_config.wechatworkbot,
                             "【guangluo】工作日志邮件发送失败!",
                         )
@@ -92,7 +93,7 @@ impl ExMail {
                     }
                 }
 
-                eprintln!("Could not send email: {:?}", e)
+                error!("Could not send email: {:?}", e)
             }
         }
 
@@ -100,7 +101,7 @@ impl ExMail {
     }
 }
 
-async fn post_to_wechatwork_bot(
+async fn post_to_wechatworkbot(
     wechatworkbot_config: WechatWorkBotConfiguration,
     message: &str,
 ) -> Result<bool> {
@@ -120,8 +121,9 @@ async fn post_to_wechatwork_bot(
         }))
         .send()
         .await?;
+
     if res.status() != 200 {
-        eprintln!("Failed to post to WechatWork Bot: {:?}", res.text().await?);
+        error!("Failed to post to WechatWorkBot: {:?}", res.text().await?);
         return Ok(false);
     }
 
