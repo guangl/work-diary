@@ -1,7 +1,10 @@
 use anyhow::Result;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 
-use crate::utils::config::{Config, WechatWorkBotConfiguration};
+use crate::utils::config::{
+    get, EmailConfiguration, FeaturesConfiguration, NotifyConfiguration, SmtpConfiguration,
+    WechatWorkBotConfiguration,
+};
 
 #[derive(Debug, Default)]
 pub struct ExMail {
@@ -16,8 +19,8 @@ pub struct ExMail {
 
 impl ExMail {
     pub fn new() -> Self {
-        let email_config = Config::get_email_config(None).unwrap();
-        let smtp_config = Config::get_smtp_config(None).unwrap();
+        let email_config = get::<EmailConfiguration>("email");
+        let smtp_config = get::<SmtpConfiguration>("smtp");
 
         ExMail {
             send_email: email_config.send_email,
@@ -59,11 +62,11 @@ impl ExMail {
             .credentials(credentials)
             .build();
 
-        let features_config = Config::get_features_config(None)?;
+        let features_config = get::<FeaturesConfiguration>("features");
         match mailer.send(&email) {
             Ok(_) => {
                 if features_config.enable_notify {
-                    let notify_config = Config::get_notify_config(None)?;
+                    let notify_config = get::<NotifyConfiguration>("features.notify");
 
                     if notify_config.enable_wechatwork_bot {
                         post_to_wechatwork_bot(
@@ -78,8 +81,8 @@ impl ExMail {
             }
             Err(e) => {
                 if features_config.enable_notify {
-                    let notify_config = Config::get_notify_config(None)?;
-                    
+                    let notify_config = get::<NotifyConfiguration>("features.notify");
+
                     if notify_config.enable_wechatwork_bot {
                         post_to_wechatwork_bot(
                             notify_config.wechatworkbot,

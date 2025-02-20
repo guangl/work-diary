@@ -1,15 +1,6 @@
-use std::fs;
-
-use anyhow::Result;
+use config::{Config, File};
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-pub struct Config {
-    pub smtp: SmtpConfiguration,
-    pub email: EmailConfiguration,
-    pub diary: DiaryConfiguration,
-    pub features: FeaturesConfiguration,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct FeaturesConfiguration {
@@ -61,48 +52,19 @@ pub struct EmailConfiguration {
     pub password: String,
 }
 
-// TODO use config crate to simplify the code
-impl Config {
-    pub fn get_config(config_file_path: &str) -> Result<Config> {
-        let content = fs::read_to_string(config_file_path)?;
-        Ok(toml::from_str::<Config>(&content)?)
-    }
+static CONFIG: OnceCell<Config> = OnceCell::new();
 
-    pub fn get_email_config(config_file_path: Option<&str>) -> Result<EmailConfiguration> {
-        let config_file_path = config_file_path.unwrap_or("config.toml");
+pub fn init_config(config_file_path: Option<&str>) -> &'static Config {
+    let config_file_path = config_file_path.unwrap_or("config.toml");
 
-        let config = Config::get_config(config_file_path)?;
-        Ok(config.email)
-    }
+    CONFIG.get_or_init(|| {
+        Config::builder()
+            .add_source(File::with_name(config_file_path))
+            .build()
+            .unwrap()
+    })
+}
 
-    pub fn get_smtp_config(config_file_path: Option<&str>) -> Result<SmtpConfiguration> {
-        let config_file_path = config_file_path.unwrap_or("config.toml");
-
-        let config = Config::get_config(config_file_path)?;
-        Ok(config.smtp)
-    }
-
-    pub fn get_diary_config(config_file_path: Option<&str>) -> Result<DiaryConfiguration> {
-        let config_file_path = config_file_path.unwrap_or("config.toml");
-
-        let config = Config::get_config(config_file_path)?;
-        Ok(config.diary)
-    }
-
-    pub fn get_features_config(config_file_path: Option<&str>) -> Result<FeaturesConfiguration> {
-        let config_file_path = config_file_path.unwrap_or("config.toml");
-
-        let config = Config::get_config(config_file_path)?;
-        Ok(config.features)
-    }
-
-    pub fn get_samba_config(config_file_path: Option<&str>) -> Result<SambaConfiguration> {
-        let config = Config::get_features_config(config_file_path)?;
-        Ok(config.samba)
-    }
-
-    pub fn get_notify_config(config_file_path: Option<&str>) -> Result<NotifyConfiguration> {
-        let config = Config::get_features_config(config_file_path)?;
-        Ok(config.notify)
-    }
+pub fn get<'a, T: Deserialize<'a>>(key: &str) -> T {
+    CONFIG.get().unwrap().get::<T>(key).unwrap()
 }
