@@ -19,6 +19,11 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Install Samba dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y samba libsmbclient-dev
+
       - name: Build project
         run: cargo build --release
 
@@ -32,6 +37,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           body: |
             Release notes for ${{ github.ref }}
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
